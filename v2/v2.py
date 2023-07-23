@@ -28,14 +28,14 @@ class NVCCPluginV2(Magics):
     @staticmethod
     def compile(output_dir, file_paths, out):
         res = subprocess.check_output(
-            [compiler, '-I' + output_dir, file_paths, "-o", out, '-Wno-deprecated-gpu-targets'], stderr=subprocess.STDOUT)
+            [compiler, '-I' + output_dir, file_paths, "-o", out, '-Wno-deprecated-gpu-targets'], stderr=subprocess.STDOUT).decode('utf-8')
         helper.print_out(res)
 
     def run(self, timeit=False):
         if timeit:
             stmt = f"subprocess.check_output(['{self.out}'], stderr=subprocess.STDOUT)"
-            output = self.shell.run_cell_magic(
-                magic_name="timeit", line="-q -o import subprocess", cell=stmt)
+            output = str(self.shell.run_cell_magic(
+                magic_name="timeit", line="-q -o import subprocess", cell=stmt))
         else:
             output = subprocess.check_output(
                 [self.out], stderr=subprocess.STDOUT)
@@ -46,7 +46,8 @@ class NVCCPluginV2(Magics):
 
     @magic_arguments()
     @argument('-n', '--name', type=str, help='file name that will be produced by the cell. must end with .cu extension')
-    @argument('-c', '--compile', type=bool, help='Should be compiled?')
+    @argument('-c', '--compile', action='store_true', help='Should be compiled?')
+    @argument('-t', '--timeit', action='store_true', help='Time it?')
     @cell_magic
     def cuda(self, line='', cell=None):
         args = parse_argstring(self.cuda, line)
