@@ -28,7 +28,7 @@ class NVCCPluginV2(Magics):
     @staticmethod
     def compile(output_dir, file_paths, out):
         res = subprocess.check_output(
-            [compiler, '-I' + output_dir, file_paths, "-o", out, '-Wno-deprecated-gpu-targets'], stderr=subprocess.STDOUT).decode('utf-8')
+            [compiler, '-I' + output_dir, *file_paths, "-o", out, '-Wno-deprecated-gpu-targets'], stderr=subprocess.STDOUT).decode('utf-8')
         helper.print_out(res)
 
     def run(self, timeit=False):
@@ -65,12 +65,18 @@ class NVCCPluginV2(Magics):
                 print(f"Successfully created the directory {self.output_dir}")
 
         file_path = os.path.join(self.output_dir, args.name)
+        try:
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        except OSError:
+            print(f"Creation of the directory {os.path.dirname(file_path)} failed")
+        else:
+            print(f"Successfully created the directory {os.path.dirname(file_path)}")
         with open(file_path, "w") as f:
             f.write(cell)
 
         if args.compile:
             try:
-                self.compile(self.output_dir, file_path, self.out)
+                self.compile(self.output_dir, [file_path], self.out)
                 output = self.run(timeit=args.timeit)
             except subprocess.CalledProcessError as e:
                 helper.print_out(e.output.decode("utf8"))
@@ -89,11 +95,11 @@ class NVCCPluginV2(Magics):
             return
 
         try:
-            cuda_src = os.listdir(self.output_dir)
-            cuda_src = [os.path.join(self.output_dir, x)
-                        for x in cuda_src if x[-3:] == '.cu']
+            cuda_src = []
+            for root, _, files in os.walk(self.output_dir, topdown=False):
+                cuda_src.extend([os.path.join(root, name) for name in files if name[-3:] == '.cu'])
             print(f'found sources: {cuda_src}')
-            self.compile(self.output_dir, ' '.join(cuda_src), self.out)
+            self.compile(self.output_dir, cuda_src, self.out)
             output = self.run(timeit=args.timeit)
         except subprocess.CalledProcessError as e:
             helper.print_out(e.output.decode("utf8"))
